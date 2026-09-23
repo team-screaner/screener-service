@@ -1,0 +1,2 @@
+Use Go backend standards from https://github.com/ii-reviewer/go-backend-standards.
+TDD: observe failing behavioral test before implementing each slice. Domain policy, public HTTP API, PostgreSQL transactions and XLSX interfaces are the test seams authorized by the user. Preserve immutable published versions and assessments. Never infer an assessment score from evidence acceptance. Run make test and make test-integration before delivery. Do not edit generated API files.
