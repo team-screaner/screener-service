@@ -138,6 +138,14 @@ func TestPublishedVersionsAndPrivateOwnership(t *testing.T) {
 	if next["id"] == vid {
 		t.Fatal("version identity reused")
 	}
+	page := call(t, s, "GET", "/matrices/"+id+"/versions?limit=1", token, "", nil, 200)
+	if len(page["items"].([]any)) != 1 || page["next_cursor"] == "" {
+		t.Fatalf("unbounded version page: %v", page)
+	}
+	last := call(t, s, "GET", "/matrices/"+id+"/versions?limit=1&cursor="+page["next_cursor"].(string), token, "", nil, 200)
+	if len(last["items"].([]any)) != 1 || last["items"].([]any)[0].(map[string]any)["id"] != next["id"] || last["next_cursor"] != "" {
+		t.Fatalf("incorrect second version page: %v", last)
+	}
 	old := call(t, s, "GET", "/matrix-versions/"+vid, token, "", nil, 200)
 	if old["status"] != "published" {
 		t.Fatalf("old version changed: %v", old)

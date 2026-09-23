@@ -137,10 +137,10 @@ func importKey(prefix, value string) string {
 	dash := false
 	for _, r := range strings.ToLower(value) {
 		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
-			slug.WriteRune(r)
+			_, _ = slug.WriteRune(r) // strings.Builder writes cannot fail.
 			dash = false
 		} else if slug.Len() > 0 && !dash {
-			slug.WriteByte('-')
+			_ = slug.WriteByte('-') // strings.Builder writes cannot fail.
 			dash = true
 		}
 		if slug.Len() >= 32 {

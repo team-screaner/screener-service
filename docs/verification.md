@@ -34,6 +34,7 @@ Implementation was verified with Go 1.27.1 and Docker PostgreSQL 17. Tests own d
 | XLSX malformed string | Invalid index silently removed requirement text | Invalid shared-string references rejected before parsing |
 | Output schema | EvidenceMatch.id rejected by response validator | Separate input/output match schemas, nullable unmatched requirement |
 | Audit | Created resource ID was blank | Create events identify their resource |
+| Pagination | Token and version lists ignored limit=1 | Bounded queries, request-bound cursors, distinct subsequent pages |
 
 Additional integration coverage includes atomic batch rollback, concurrent external-ID deduplication, eight concurrent identical HTTP commands producing one organization and one audit event, changed-key-payload conflict, cross-user and organization isolation, snapshot overrides, accepted evidence links, immutable database guards, complete seed reload without duplicates, and personal workbook export isolation.
 

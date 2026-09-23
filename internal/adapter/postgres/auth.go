@@ -22,8 +22,12 @@ func (s *Store) dispatch(ctx context.Context, tx *sql.Tx, c domain.Command) (dom
 	case "createToken":
 		return createToken(ctx, tx, c)
 	case "listTokens":
-		items, err := jsonRows(ctx, tx, `SELECT jsonb_build_object('id',id,'name',name,'scopes',scopes,'expires_at',expires_at,'revoked_at',revoked_at) FROM api_tokens WHERE user_id=$1 AND kind='agent' ORDER BY id`, c.Actor.UserID)
-		return domain.Result{"items": items}, err
+		limit, after, err := page(c)
+		if err != nil {
+			return nil, err
+		}
+		items, err := jsonRows(ctx, tx, `SELECT jsonb_build_object('id',id,'name',name,'scopes',scopes,'expires_at',expires_at,'revoked_at',revoked_at) FROM api_tokens WHERE user_id=$1 AND kind='agent' AND id>$2 ORDER BY id LIMIT $3`, c.Actor.UserID, after, limit+1)
+		return paged(c, items, limit), err
 	case "logout", "revokeToken":
 		id := c.ID
 		if c.Operation == "logout" {

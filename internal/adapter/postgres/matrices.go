@@ -283,12 +283,17 @@ func handleMatrix(ctx context.Context, tx *sql.Tx, c domain.Command) (domain.Res
 			return nil, err
 		}
 		_, writeErr := matrixAccess(ctx, tx, c.ID, c.Actor.UserID, true)
-		items, err := jsonRows(ctx, tx, `SELECT to_jsonb(v)||jsonb_build_object('version',revision) FROM matrix_versions v WHERE matrix_id=$1 AND (status='published' OR $2) ORDER BY number`, c.ID, writeErr == nil)
+		if c.Operation == "listVersions" {
+			limit, after, pageErr := page(c)
+			if pageErr != nil {
+				return nil, pageErr
+			}
+			items, listErr := jsonRows(ctx, tx, `SELECT to_jsonb(v)||jsonb_build_object('version',revision) FROM matrix_versions v WHERE matrix_id=$1 AND (status='published' OR $2) AND id>$3 ORDER BY id LIMIT $4`, c.ID, writeErr == nil, after, limit+1)
+			return paged(c, items, limit), listErr
+		}
+		items, err := jsonRows(ctx, tx, `SELECT to_jsonb(v)||jsonb_build_object('version',revision) FROM matrix_versions v WHERE matrix_id=$1 AND (status='published' OR $2) ORDER BY number DESC LIMIT 100`, c.ID, writeErr == nil)
 		if err != nil {
 			return nil, err
-		}
-		if c.Operation == "listVersions" {
-			return domain.Result{"items": items, "next_cursor": ""}, nil
 		}
 		m["versions"] = items
 		return m, nil

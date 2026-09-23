@@ -68,6 +68,8 @@ curl --fail --silent "$BASE/api/v1/evidence?limit=20" \
 
 ## Проверки и разработка
 
+Списки используют `limit` (1–100, по умолчанию 50) и `next_cursor`. Курсор привязан к пользователю, пути и параметрам запроса. Карточка матрицы содержит последние 100 доступных версий; полную историю возвращает постраничный `GET /api/v1/matrices/{id}/versions`.
+
 ```sh
 make generate          # типы и HTTP-контракт из OpenAPI
 make test              # unit: race detector + случайный порядок
