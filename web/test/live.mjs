@@ -95,6 +95,7 @@ test(
             assessment: "Самооценка",
             plan: "План развития",
             settings: "Агенты и доступ",
+            reviews: "Оценки команды",
           }[name],
         "Route did not change to " + name,
       );
@@ -106,7 +107,8 @@ test(
       await import("../dist/app.js?live=" + Date.now());
       await click('[data-action="auth-toggle"]');
       fill('[name="name"]', "Frontend verification");
-      fill('[name="email"]', `frontend-${crypto.randomUUID()}@example.test`);
+      const ownerEmail = `frontend-${crypto.randomUUID()}@example.test`;
+      fill('[name="email"]', ownerEmail);
       fill('[name="password"]', "frontend-local-test-password");
       await submit("#auth-form");
       await wait(() => page.querySelector(".sidebar"), "Registration failed");
@@ -163,6 +165,54 @@ test(
       );
       assert.notEqual(metrics[0], "0%");
       assert.match(metrics[1], /^1/);
+      const managerEmail = `manager-${crypto.randomUUID()}@example.test`;
+      const managerRegistration = await nativeFetch(base + "/api/v1/auth/register", {
+        method: "POST", headers: {"Content-Type":"application/json", "Idempotency-Key":crypto.randomUUID()},
+        body: JSON.stringify({name:"Frontend manager",email:managerEmail,password:"frontend-local-test-password"}),
+      });
+      assert.equal(managerRegistration.status, 200);
+      const managerSession = await managerRegistration.json();
+      await nativeFetch(base + "/api/v1/auth/logout", {method:"POST",headers:{Authorization:"Bearer "+managerSession.token}});
+      fill('#reviewer-form [name="email"]', managerEmail);
+      await submit("#reviewer-form");
+      await wait(()=>page.querySelector('[data-action="remove-reviewer"]'), "Reviewer assignment failed");
+      const login = async email => {
+        await click('[data-action="logout"]');
+        await wait(()=>page.querySelector('#auth-form'), "Logout failed");
+        if (page.querySelector('#auth-form [name="name"]')) await click('[data-action="auth-toggle"]');
+        fill('#auth-form [name="email"]',email);
+        fill('#auth-form [name="password"]',"frontend-local-test-password");
+        await submit('#auth-form');
+        await wait(()=>page.querySelector('.sidebar'), "Login failed");
+        token=win.sessionStorage.getItem('screener.session');
+      };
+      await login(managerEmail);
+      await route('reviews');
+      await click('[data-action="open-review"]');
+      await wait(()=>page.querySelector('#manager-assessment-form'), "Manager form failed");
+      assert.match(page.querySelector('#manager-assessment-form').textContent,/Private first-account review/);
+      const managerEvidence=page.querySelector(`input[data-req="${reqID}"][data-draft="evidence"]`);
+      managerEvidence.checked=true;
+      managerEvidence.dispatchEvent(new win.Event('change',{bubbles:true}));
+      fill(`select[data-req="${reqID}"][data-draft="score"]`,"2");
+      await submit('#manager-assessment-form');
+      await wait(()=>page.querySelector('.review-saved'), "Manager assessment failed");
+      await login(ownerEmail);
+      assert.equal(page.querySelector('#manager-assessment-form'),null, 'Manager review leaked into owner session');
+      await route('overview');
+      await wait(()=>page.querySelector('polygon.radar-manager') || page.querySelector('.group-progress .manager'), "Manager comparison missing");
+      if (page.querySelector('polygon.radar-manager')) assert.equal(page.querySelectorAll('polygon.radar-value').length,2);
+      else assert.equal(page.querySelectorAll('.group-progress progress').length,2 * page.querySelectorAll('.group-progress .manager').length);
+      assert.match(page.querySelector('.radar-comparison').textContent,/Менеджер/);
+      await route('assessment');
+      await submit('#assessment-form');
+      await wait(()=>page.querySelector('.journey-banner'), "New self snapshot failed");
+      assert.equal(page.querySelectorAll('polygon.radar-manager').length,0, "Previous manager rating compared with a new self snapshot");
+      assert.equal(page.querySelectorAll('.group-progress .manager').length,0);
+      assert.match(page.querySelector('.radar-note').textContent,/Оценки менеджера пока нет/);
+      await click('[data-action="remove-reviewer"]');
+      await wait(()=>!page.querySelector('[data-action="remove-reviewer"]'), "Reviewer revoke failed");
+
       await route("plan");
       await click('[data-action="plan"]');
       fill('[name="action"]', "Document the next design tradeoff");

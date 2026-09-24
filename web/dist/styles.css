@@ -2222,3 +2222,36 @@ dialog::backdrop {
     transition: none !important;
   }
 }
+
+/* A shared scale makes the overlapping assessment contours comparable. */
+.radar-legend { display:flex; justify-content:center; gap:24px; padding:0 20px 12px; }
+.radar-legend .legend { color:#52637d; }
+.legend.manager i { background:#da7c21; }
+.radar-value.radar-manager { fill:#ed963d; fill-opacity:.25; stroke:#cf7017; stroke-dasharray:5 3; stroke-width:2.5; }
+.radar-overlay { grid-template-columns:1fr; }
+.radar text.radar-scale { font-size:9px; fill:#607087; }
+.radar-comparison { font-size:.75rem; }
+.radar-comparison caption { text-align:left; padding:12px 22px; color:#65748b; }
+.radar-comparison th, .radar-comparison td { padding:10px 16px; }
+.radar-comparison tbody th { font-weight:500; text-align:left; white-space:normal; }
+.group-progress label { display:block; margin-top:10px; font-size:.8rem; }
+.group-progress .manager progress { accent-color:#cf7017; }
+.group-progress .manager progress::-webkit-progress-value { background:#cf7017; }
+.group-progress .manager progress::-moz-progress-bar { background:#cf7017; }
+.reviewer-panel { border-top:1px solid #e5eaf2; padding:22px; }
+.reviewer-panel h3 { margin:0 0 10px; font-size:.9rem; }
+.reviewer-panel .field-note { line-height:1.6; }
+.reviewer-panel form { margin-top:16px; }
+.reviewer-current { display:flex; gap:12px; align-items:center; justify-content:space-between; margin:16px 0; font-size:.85rem; }
+.review-list { display:grid; gap:16px; }
+.review-row { padding:24px; display:flex; align-items:center; justify-content:space-between; gap:20px; }
+.review-row h2 { margin:0; font-size:1.1rem; }
+.review-baseline { background:#f1f5ff; padding:12px 16px; border-left:3px solid #4879f0; color:#405574; font-size:.85rem; }
+.review-evidence { margin:0 0 12px 26px; font-size:.8rem; color:#52637d; }
+.review-evidence summary { cursor:pointer; }
+.review-evidence p { white-space:pre-wrap; overflow-wrap:anywhere; }
+@media(max-width:600px) {
+  .review-row, .reviewer-current { align-items:stretch; flex-direction:column; }
+  .radar-comparison th, .radar-comparison td { padding:9px 10px; }
+  .reviewer-panel { padding:18px; }
+}

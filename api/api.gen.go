@@ -27,13 +27,16 @@ import (
 
 // Defines values for AssessmentInputType.
 const (
-	Self AssessmentInputType = "self"
+	AssessmentInputTypeManager AssessmentInputType = "manager"
+	AssessmentInputTypeSelf    AssessmentInputType = "self"
 )
 
 // Valid indicates whether the value is a known member of the AssessmentInputType enum.
 func (e AssessmentInputType) Valid() bool {
 	switch e {
-	case Self:
+	case AssessmentInputTypeManager:
+		return true
+	case AssessmentInputTypeSelf:
 		return true
 	default:
 		return false
@@ -177,19 +180,19 @@ func (e MatrixInputVisibility) Valid() bool {
 
 // Defines values for MemberInputRole.
 const (
-	Admin   MemberInputRole = "admin"
-	Manager MemberInputRole = "manager"
-	Member  MemberInputRole = "member"
+	MemberInputRoleAdmin   MemberInputRole = "admin"
+	MemberInputRoleManager MemberInputRole = "manager"
+	MemberInputRoleMember  MemberInputRole = "member"
 )
 
 // Valid indicates whether the value is a known member of the MemberInputRole enum.
 func (e MemberInputRole) Valid() bool {
 	switch e {
-	case Admin:
+	case MemberInputRoleAdmin:
 		return true
-	case Manager:
+	case MemberInputRoleManager:
 		return true
-	case Member:
+	case MemberInputRoleMember:
 		return true
 	default:
 		return false
@@ -276,11 +279,13 @@ func (e UpstreamInputAction) Valid() bool {
 
 // Assessment defines model for Assessment.
 type Assessment struct {
+	AssessorId           *string                   `json:"assessor_id,omitempty"`
 	CreatedAt            *string                   `json:"created_at,omitempty"`
 	Id                   string                    `json:"id"`
 	Items                *[]AssessmentSnapshotItem `json:"items,omitempty"`
 	MatrixVersionId      string                    `json:"matrix_version_id"`
 	Period               string                    `json:"period"`
+	ReviewedAssessmentId *string                   `json:"reviewed_assessment_id,omitempty"`
 	Type                 string                    `json:"type"`
 	UserId               *string                   `json:"user_id,omitempty"`
 	UserMatrixId         string                    `json:"user_matrix_id"`
@@ -289,10 +294,11 @@ type Assessment struct {
 
 // AssessmentInput defines model for AssessmentInput.
 type AssessmentInput struct {
-	Items        []AssessmentItem    `json:"items"`
-	Period       string              `json:"period"`
-	Type         AssessmentInputType `json:"type"`
-	UserMatrixId string              `json:"user_matrix_id"`
+	Items                []AssessmentItem    `json:"items"`
+	Period               string              `json:"period"`
+	ReviewedAssessmentId *string             `json:"reviewed_assessment_id,omitempty"`
+	Type                 AssessmentInputType `json:"type"`
+	UserMatrixId         string              `json:"user_matrix_id"`
 }
 
 // AssessmentInputType defines model for AssessmentInput.Type.
@@ -620,7 +626,10 @@ type Radar struct {
 	CriticalGaps         []string               `json:"critical_gaps"`
 	Gaps                 []Object               `json:"gaps"`
 	Groups               []Object               `json:"groups"`
+	ManagerAssessmentId  *string                `json:"manager_assessment_id,omitempty"`
+	ManagerAuthor        *User                  `json:"manager_author,omitempty"`
 	Percent              float32                `json:"percent"`
+	Period               *string                `json:"period,omitempty"`
 	Policy               *string                `json:"policy,omitempty"`
 	Ready                bool                   `json:"ready"`
 	Series               RadarSeries            `json:"series"`
@@ -685,6 +694,31 @@ type Requirement struct {
 	Weight      float32 `json:"weight"`
 }
 
+// ReviewAssignment defines model for ReviewAssignment.
+type ReviewAssignment struct {
+	AssessmentId         *string                `json:"assessment_id"`
+	Id                   string                 `json:"id"`
+	MatrixName           string                 `json:"matrix_name"`
+	TargetLevelName      string                 `json:"target_level_name"`
+	User                 User                   `json:"user"`
+	AdditionalProperties map[string]interface{} `json:"-"`
+}
+
+// ReviewAssignmentPage defines model for ReviewAssignmentPage.
+type ReviewAssignmentPage struct {
+	Items                []ReviewAssignment     `json:"items"`
+	NextCursor           *string                `json:"next_cursor,omitempty"`
+	AdditionalProperties map[string]interface{} `json:"-"`
+}
+
+// ReviewContext defines model for ReviewContext.
+type ReviewContext struct {
+	Assessment           *Assessment            `json:"assessment"`
+	Context              GrowthContext          `json:"context"`
+	ManagerAssessment    *Assessment            `json:"manager_assessment"`
+	AdditionalProperties map[string]interface{} `json:"-"`
+}
+
 // ReviewInput defines model for ReviewInput.
 type ReviewInput struct {
 	Description *string           `json:"description,omitempty"`
@@ -695,6 +729,18 @@ type ReviewInput struct {
 
 // ReviewInputStatus defines model for ReviewInput.Status.
 type ReviewInputStatus string
+
+// Reviewer defines model for Reviewer.
+type Reviewer struct {
+	Reviewer             *User                  `json:"reviewer"`
+	UserMatrixId         string                 `json:"user_matrix_id"`
+	AdditionalProperties map[string]interface{} `json:"-"`
+}
+
+// ReviewerInput defines model for ReviewerInput.
+type ReviewerInput struct {
+	Email openapi_types.Email `json:"email"`
+}
 
 // Skill defines model for Skill.
 type Skill struct {
@@ -1040,6 +1086,18 @@ type SetOverrideParams struct {
 	IdempotencyKey string `json:"Idempotency-Key"`
 }
 
+// ListReviewsParams defines parameters for ListReviews.
+type ListReviewsParams struct {
+	Limit  *string `form:"limit,omitempty" json:"limit,omitempty"`
+	Cursor *string `form:"cursor,omitempty" json:"cursor,omitempty"`
+}
+
+// GetReviewParams defines parameters for GetReview.
+type GetReviewParams struct {
+	Limit  *string `form:"limit,omitempty" json:"limit,omitempty"`
+	Cursor *string `form:"cursor,omitempty" json:"cursor,omitempty"`
+}
+
 // ListSkillsParams defines parameters for ListSkills.
 type ListSkillsParams struct {
 	Limit    *string `form:"limit,omitempty" json:"limit,omitempty"`
@@ -1083,6 +1141,22 @@ type ListUserMatricesParams struct {
 
 // CreateUserMatrixParams defines parameters for CreateUserMatrix.
 type CreateUserMatrixParams struct {
+	IdempotencyKey string `json:"Idempotency-Key"`
+}
+
+// RemoveReviewerParams defines parameters for RemoveReviewer.
+type RemoveReviewerParams struct {
+	IdempotencyKey string `json:"Idempotency-Key"`
+}
+
+// GetReviewerParams defines parameters for GetReviewer.
+type GetReviewerParams struct {
+	Limit  *string `form:"limit,omitempty" json:"limit,omitempty"`
+	Cursor *string `form:"cursor,omitempty" json:"cursor,omitempty"`
+}
+
+// SetReviewerParams defines parameters for SetReviewer.
+type SetReviewerParams struct {
 	IdempotencyKey string `json:"Idempotency-Key"`
 }
 
@@ -1152,6 +1226,9 @@ type CreateTokenJSONRequestBody = TokenRequest
 // CreateUserMatrixJSONRequestBody defines body for CreateUserMatrix for application/json ContentType.
 type CreateUserMatrixJSONRequestBody = UserMatrixInput
 
+// SetReviewerJSONRequestBody defines body for SetReviewer for application/json ContentType.
+type SetReviewerJSONRequestBody = ReviewerInput
+
 // Getter for additional properties for Assessment. Returns the specified
 // element and whether it was found
 func (a Assessment) Get(fieldName string) (value interface{}, found bool) {
@@ -1175,6 +1252,14 @@ func (a *Assessment) UnmarshalJSON(b []byte) error {
 	err := json.Unmarshal(b, &object)
 	if err != nil {
 		return err
+	}
+
+	if raw, found := object["assessor_id"]; found {
+		err = json.Unmarshal(raw, &a.AssessorId)
+		if err != nil {
+			return fmt.Errorf("error reading 'assessor_id': %w", err)
+		}
+		delete(object, "assessor_id")
 	}
 
 	if raw, found := object["created_at"]; found {
@@ -1215,6 +1300,14 @@ func (a *Assessment) UnmarshalJSON(b []byte) error {
 			return fmt.Errorf("error reading 'period': %w", err)
 		}
 		delete(object, "period")
+	}
+
+	if raw, found := object["reviewed_assessment_id"]; found {
+		err = json.Unmarshal(raw, &a.ReviewedAssessmentId)
+		if err != nil {
+			return fmt.Errorf("error reading 'reviewed_assessment_id': %w", err)
+		}
+		delete(object, "reviewed_assessment_id")
 	}
 
 	if raw, found := object["type"]; found {
@@ -1260,6 +1353,13 @@ func (a Assessment) MarshalJSON() ([]byte, error) {
 	var err error
 	object := make(map[string]json.RawMessage)
 
+	if a.AssessorId != nil {
+		object["assessor_id"], err = json.Marshal(a.AssessorId)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'assessor_id': %w", err)
+		}
+	}
+
 	if a.CreatedAt != nil {
 		object["created_at"], err = json.Marshal(a.CreatedAt)
 		if err != nil {
@@ -1287,6 +1387,13 @@ func (a Assessment) MarshalJSON() ([]byte, error) {
 	object["period"], err = json.Marshal(a.Period)
 	if err != nil {
 		return nil, fmt.Errorf("error marshaling 'period': %w", err)
+	}
+
+	if a.ReviewedAssessmentId != nil {
+		object["reviewed_assessment_id"], err = json.Marshal(a.ReviewedAssessmentId)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'reviewed_assessment_id': %w", err)
+		}
 	}
 
 	object["type"], err = json.Marshal(a.Type)
@@ -3243,12 +3350,36 @@ func (a *Radar) UnmarshalJSON(b []byte) error {
 		delete(object, "groups")
 	}
 
+	if raw, found := object["manager_assessment_id"]; found {
+		err = json.Unmarshal(raw, &a.ManagerAssessmentId)
+		if err != nil {
+			return fmt.Errorf("error reading 'manager_assessment_id': %w", err)
+		}
+		delete(object, "manager_assessment_id")
+	}
+
+	if raw, found := object["manager_author"]; found {
+		err = json.Unmarshal(raw, &a.ManagerAuthor)
+		if err != nil {
+			return fmt.Errorf("error reading 'manager_author': %w", err)
+		}
+		delete(object, "manager_author")
+	}
+
 	if raw, found := object["percent"]; found {
 		err = json.Unmarshal(raw, &a.Percent)
 		if err != nil {
 			return fmt.Errorf("error reading 'percent': %w", err)
 		}
 		delete(object, "percent")
+	}
+
+	if raw, found := object["period"]; found {
+		err = json.Unmarshal(raw, &a.Period)
+		if err != nil {
+			return fmt.Errorf("error reading 'period': %w", err)
+		}
+		delete(object, "period")
 	}
 
 	if raw, found := object["policy"]; found {
@@ -3330,9 +3461,30 @@ func (a Radar) MarshalJSON() ([]byte, error) {
 		}
 	}
 
+	if a.ManagerAssessmentId != nil {
+		object["manager_assessment_id"], err = json.Marshal(a.ManagerAssessmentId)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'manager_assessment_id': %w", err)
+		}
+	}
+
+	if a.ManagerAuthor != nil {
+		object["manager_author"], err = json.Marshal(a.ManagerAuthor)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'manager_author': %w", err)
+		}
+	}
+
 	object["percent"], err = json.Marshal(a.Percent)
 	if err != nil {
 		return nil, fmt.Errorf("error marshaling 'percent': %w", err)
+	}
+
+	if a.Period != nil {
+		object["period"], err = json.Marshal(a.Period)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'period': %w", err)
+		}
 	}
 
 	if a.Policy != nil {
@@ -3827,6 +3979,378 @@ func (a Readiness) MarshalJSON() ([]byte, error) {
 	object["ready"], err = json.Marshal(a.Ready)
 	if err != nil {
 		return nil, fmt.Errorf("error marshaling 'ready': %w", err)
+	}
+
+	object["user_matrix_id"], err = json.Marshal(a.UserMatrixId)
+	if err != nil {
+		return nil, fmt.Errorf("error marshaling 'user_matrix_id': %w", err)
+	}
+
+	for fieldName, field := range a.AdditionalProperties {
+		object[fieldName], err = json.Marshal(field)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling '%s': %w", fieldName, err)
+		}
+	}
+	return json.Marshal(object)
+}
+
+// Getter for additional properties for ReviewAssignment. Returns the specified
+// element and whether it was found
+func (a ReviewAssignment) Get(fieldName string) (value interface{}, found bool) {
+	if a.AdditionalProperties != nil {
+		value, found = a.AdditionalProperties[fieldName]
+	}
+	return
+}
+
+// Setter for additional properties for ReviewAssignment
+func (a *ReviewAssignment) Set(fieldName string, value interface{}) {
+	if a.AdditionalProperties == nil {
+		a.AdditionalProperties = make(map[string]interface{})
+	}
+	a.AdditionalProperties[fieldName] = value
+}
+
+// Override default JSON handling for ReviewAssignment to handle AdditionalProperties
+func (a *ReviewAssignment) UnmarshalJSON(b []byte) error {
+	object := make(map[string]json.RawMessage)
+	err := json.Unmarshal(b, &object)
+	if err != nil {
+		return err
+	}
+
+	if raw, found := object["assessment_id"]; found {
+		err = json.Unmarshal(raw, &a.AssessmentId)
+		if err != nil {
+			return fmt.Errorf("error reading 'assessment_id': %w", err)
+		}
+		delete(object, "assessment_id")
+	}
+
+	if raw, found := object["id"]; found {
+		err = json.Unmarshal(raw, &a.Id)
+		if err != nil {
+			return fmt.Errorf("error reading 'id': %w", err)
+		}
+		delete(object, "id")
+	}
+
+	if raw, found := object["matrix_name"]; found {
+		err = json.Unmarshal(raw, &a.MatrixName)
+		if err != nil {
+			return fmt.Errorf("error reading 'matrix_name': %w", err)
+		}
+		delete(object, "matrix_name")
+	}
+
+	if raw, found := object["target_level_name"]; found {
+		err = json.Unmarshal(raw, &a.TargetLevelName)
+		if err != nil {
+			return fmt.Errorf("error reading 'target_level_name': %w", err)
+		}
+		delete(object, "target_level_name")
+	}
+
+	if raw, found := object["user"]; found {
+		err = json.Unmarshal(raw, &a.User)
+		if err != nil {
+			return fmt.Errorf("error reading 'user': %w", err)
+		}
+		delete(object, "user")
+	}
+
+	if len(object) != 0 {
+		a.AdditionalProperties = make(map[string]interface{})
+		for fieldName, fieldBuf := range object {
+			var fieldVal interface{}
+			err := json.Unmarshal(fieldBuf, &fieldVal)
+			if err != nil {
+				return fmt.Errorf("error unmarshaling field %s: %w", fieldName, err)
+			}
+			a.AdditionalProperties[fieldName] = fieldVal
+		}
+	}
+	return nil
+}
+
+// Override default JSON handling for ReviewAssignment to handle AdditionalProperties
+func (a ReviewAssignment) MarshalJSON() ([]byte, error) {
+	var err error
+	object := make(map[string]json.RawMessage)
+
+	object["assessment_id"], err = json.Marshal(a.AssessmentId)
+	if err != nil {
+		return nil, fmt.Errorf("error marshaling 'assessment_id': %w", err)
+	}
+
+	object["id"], err = json.Marshal(a.Id)
+	if err != nil {
+		return nil, fmt.Errorf("error marshaling 'id': %w", err)
+	}
+
+	object["matrix_name"], err = json.Marshal(a.MatrixName)
+	if err != nil {
+		return nil, fmt.Errorf("error marshaling 'matrix_name': %w", err)
+	}
+
+	object["target_level_name"], err = json.Marshal(a.TargetLevelName)
+	if err != nil {
+		return nil, fmt.Errorf("error marshaling 'target_level_name': %w", err)
+	}
+
+	object["user"], err = json.Marshal(a.User)
+	if err != nil {
+		return nil, fmt.Errorf("error marshaling 'user': %w", err)
+	}
+
+	for fieldName, field := range a.AdditionalProperties {
+		object[fieldName], err = json.Marshal(field)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling '%s': %w", fieldName, err)
+		}
+	}
+	return json.Marshal(object)
+}
+
+// Getter for additional properties for ReviewAssignmentPage. Returns the specified
+// element and whether it was found
+func (a ReviewAssignmentPage) Get(fieldName string) (value interface{}, found bool) {
+	if a.AdditionalProperties != nil {
+		value, found = a.AdditionalProperties[fieldName]
+	}
+	return
+}
+
+// Setter for additional properties for ReviewAssignmentPage
+func (a *ReviewAssignmentPage) Set(fieldName string, value interface{}) {
+	if a.AdditionalProperties == nil {
+		a.AdditionalProperties = make(map[string]interface{})
+	}
+	a.AdditionalProperties[fieldName] = value
+}
+
+// Override default JSON handling for ReviewAssignmentPage to handle AdditionalProperties
+func (a *ReviewAssignmentPage) UnmarshalJSON(b []byte) error {
+	object := make(map[string]json.RawMessage)
+	err := json.Unmarshal(b, &object)
+	if err != nil {
+		return err
+	}
+
+	if raw, found := object["items"]; found {
+		err = json.Unmarshal(raw, &a.Items)
+		if err != nil {
+			return fmt.Errorf("error reading 'items': %w", err)
+		}
+		delete(object, "items")
+	}
+
+	if raw, found := object["next_cursor"]; found {
+		err = json.Unmarshal(raw, &a.NextCursor)
+		if err != nil {
+			return fmt.Errorf("error reading 'next_cursor': %w", err)
+		}
+		delete(object, "next_cursor")
+	}
+
+	if len(object) != 0 {
+		a.AdditionalProperties = make(map[string]interface{})
+		for fieldName, fieldBuf := range object {
+			var fieldVal interface{}
+			err := json.Unmarshal(fieldBuf, &fieldVal)
+			if err != nil {
+				return fmt.Errorf("error unmarshaling field %s: %w", fieldName, err)
+			}
+			a.AdditionalProperties[fieldName] = fieldVal
+		}
+	}
+	return nil
+}
+
+// Override default JSON handling for ReviewAssignmentPage to handle AdditionalProperties
+func (a ReviewAssignmentPage) MarshalJSON() ([]byte, error) {
+	var err error
+	object := make(map[string]json.RawMessage)
+
+	if a.Items != nil {
+		object["items"], err = json.Marshal(a.Items)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'items': %w", err)
+		}
+	}
+
+	if a.NextCursor != nil {
+		object["next_cursor"], err = json.Marshal(a.NextCursor)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'next_cursor': %w", err)
+		}
+	}
+
+	for fieldName, field := range a.AdditionalProperties {
+		object[fieldName], err = json.Marshal(field)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling '%s': %w", fieldName, err)
+		}
+	}
+	return json.Marshal(object)
+}
+
+// Getter for additional properties for ReviewContext. Returns the specified
+// element and whether it was found
+func (a ReviewContext) Get(fieldName string) (value interface{}, found bool) {
+	if a.AdditionalProperties != nil {
+		value, found = a.AdditionalProperties[fieldName]
+	}
+	return
+}
+
+// Setter for additional properties for ReviewContext
+func (a *ReviewContext) Set(fieldName string, value interface{}) {
+	if a.AdditionalProperties == nil {
+		a.AdditionalProperties = make(map[string]interface{})
+	}
+	a.AdditionalProperties[fieldName] = value
+}
+
+// Override default JSON handling for ReviewContext to handle AdditionalProperties
+func (a *ReviewContext) UnmarshalJSON(b []byte) error {
+	object := make(map[string]json.RawMessage)
+	err := json.Unmarshal(b, &object)
+	if err != nil {
+		return err
+	}
+
+	if raw, found := object["assessment"]; found {
+		err = json.Unmarshal(raw, &a.Assessment)
+		if err != nil {
+			return fmt.Errorf("error reading 'assessment': %w", err)
+		}
+		delete(object, "assessment")
+	}
+
+	if raw, found := object["context"]; found {
+		err = json.Unmarshal(raw, &a.Context)
+		if err != nil {
+			return fmt.Errorf("error reading 'context': %w", err)
+		}
+		delete(object, "context")
+	}
+
+	if raw, found := object["manager_assessment"]; found {
+		err = json.Unmarshal(raw, &a.ManagerAssessment)
+		if err != nil {
+			return fmt.Errorf("error reading 'manager_assessment': %w", err)
+		}
+		delete(object, "manager_assessment")
+	}
+
+	if len(object) != 0 {
+		a.AdditionalProperties = make(map[string]interface{})
+		for fieldName, fieldBuf := range object {
+			var fieldVal interface{}
+			err := json.Unmarshal(fieldBuf, &fieldVal)
+			if err != nil {
+				return fmt.Errorf("error unmarshaling field %s: %w", fieldName, err)
+			}
+			a.AdditionalProperties[fieldName] = fieldVal
+		}
+	}
+	return nil
+}
+
+// Override default JSON handling for ReviewContext to handle AdditionalProperties
+func (a ReviewContext) MarshalJSON() ([]byte, error) {
+	var err error
+	object := make(map[string]json.RawMessage)
+
+	object["assessment"], err = json.Marshal(a.Assessment)
+	if err != nil {
+		return nil, fmt.Errorf("error marshaling 'assessment': %w", err)
+	}
+
+	object["context"], err = json.Marshal(a.Context)
+	if err != nil {
+		return nil, fmt.Errorf("error marshaling 'context': %w", err)
+	}
+
+	object["manager_assessment"], err = json.Marshal(a.ManagerAssessment)
+	if err != nil {
+		return nil, fmt.Errorf("error marshaling 'manager_assessment': %w", err)
+	}
+
+	for fieldName, field := range a.AdditionalProperties {
+		object[fieldName], err = json.Marshal(field)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling '%s': %w", fieldName, err)
+		}
+	}
+	return json.Marshal(object)
+}
+
+// Getter for additional properties for Reviewer. Returns the specified
+// element and whether it was found
+func (a Reviewer) Get(fieldName string) (value interface{}, found bool) {
+	if a.AdditionalProperties != nil {
+		value, found = a.AdditionalProperties[fieldName]
+	}
+	return
+}
+
+// Setter for additional properties for Reviewer
+func (a *Reviewer) Set(fieldName string, value interface{}) {
+	if a.AdditionalProperties == nil {
+		a.AdditionalProperties = make(map[string]interface{})
+	}
+	a.AdditionalProperties[fieldName] = value
+}
+
+// Override default JSON handling for Reviewer to handle AdditionalProperties
+func (a *Reviewer) UnmarshalJSON(b []byte) error {
+	object := make(map[string]json.RawMessage)
+	err := json.Unmarshal(b, &object)
+	if err != nil {
+		return err
+	}
+
+	if raw, found := object["reviewer"]; found {
+		err = json.Unmarshal(raw, &a.Reviewer)
+		if err != nil {
+			return fmt.Errorf("error reading 'reviewer': %w", err)
+		}
+		delete(object, "reviewer")
+	}
+
+	if raw, found := object["user_matrix_id"]; found {
+		err = json.Unmarshal(raw, &a.UserMatrixId)
+		if err != nil {
+			return fmt.Errorf("error reading 'user_matrix_id': %w", err)
+		}
+		delete(object, "user_matrix_id")
+	}
+
+	if len(object) != 0 {
+		a.AdditionalProperties = make(map[string]interface{})
+		for fieldName, fieldBuf := range object {
+			var fieldVal interface{}
+			err := json.Unmarshal(fieldBuf, &fieldVal)
+			if err != nil {
+				return fmt.Errorf("error unmarshaling field %s: %w", fieldName, err)
+			}
+			a.AdditionalProperties[fieldName] = fieldVal
+		}
+	}
+	return nil
+}
+
+// Override default JSON handling for Reviewer to handle AdditionalProperties
+func (a Reviewer) MarshalJSON() ([]byte, error) {
+	var err error
+	object := make(map[string]json.RawMessage)
+
+	object["reviewer"], err = json.Marshal(a.Reviewer)
+	if err != nil {
+		return nil, fmt.Errorf("error marshaling 'reviewer': %w", err)
 	}
 
 	object["user_matrix_id"], err = json.Marshal(a.UserMatrixId)
@@ -5103,6 +5627,12 @@ type ServerInterface interface {
 	// (POST /api/v1/overrides)
 	SetOverride(w http.ResponseWriter, r *http.Request, params SetOverrideParams)
 
+	// (GET /api/v1/reviews)
+	ListReviews(w http.ResponseWriter, r *http.Request, params ListReviewsParams)
+
+	// (GET /api/v1/reviews/{id})
+	GetReview(w http.ResponseWriter, r *http.Request, id string, params GetReviewParams)
+
 	// (GET /api/v1/skills)
 	ListSkills(w http.ResponseWriter, r *http.Request, params ListSkillsParams)
 
@@ -5126,6 +5656,15 @@ type ServerInterface interface {
 
 	// (POST /api/v1/user-matrices)
 	CreateUserMatrix(w http.ResponseWriter, r *http.Request, params CreateUserMatrixParams)
+
+	// (DELETE /api/v1/user-matrices/{id}/reviewer)
+	RemoveReviewer(w http.ResponseWriter, r *http.Request, id string, params RemoveReviewerParams)
+
+	// (GET /api/v1/user-matrices/{id}/reviewer)
+	GetReviewer(w http.ResponseWriter, r *http.Request, id string, params GetReviewerParams)
+
+	// (PUT /api/v1/user-matrices/{id}/reviewer)
+	SetReviewer(w http.ResponseWriter, r *http.Request, id string, params SetReviewerParams)
 }
 
 // ServerInterfaceWrapper converts contexts to parameters.
@@ -7029,6 +7568,107 @@ func (siw *ServerInterfaceWrapper) SetOverride(w http.ResponseWriter, r *http.Re
 	handler.ServeHTTP(w, r)
 }
 
+// ListReviews operation middleware
+func (siw *ServerInterfaceWrapper) ListReviews(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListReviewsParams
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", r.URL.Query(), &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "cursor"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "cursor", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListReviews(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetReview operation middleware
+func (siw *ServerInterfaceWrapper) GetReview(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetReviewParams
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", r.URL.Query(), &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "cursor"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "cursor", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetReview(w, r, id, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListSkills operation middleware
 func (siw *ServerInterfaceWrapper) ListSkills(w http.ResponseWriter, r *http.Request) {
 
@@ -7449,6 +8089,169 @@ func (siw *ServerInterfaceWrapper) CreateUserMatrix(w http.ResponseWriter, r *ht
 	handler.ServeHTTP(w, r)
 }
 
+// RemoveReviewer operation middleware
+func (siw *ServerInterfaceWrapper) RemoveReviewer(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params RemoveReviewerParams
+
+	headers := r.Header
+
+	// ------------- Required header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = IdempotencyKey
+
+	} else {
+		err := fmt.Errorf("Header parameter Idempotency-Key is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "Idempotency-Key", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RemoveReviewer(w, r, id, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetReviewer operation middleware
+func (siw *ServerInterfaceWrapper) GetReviewer(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetReviewerParams
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", r.URL.Query(), &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "cursor"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "cursor", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetReviewer(w, r, id, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SetReviewer operation middleware
+func (siw *ServerInterfaceWrapper) SetReviewer(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params SetReviewerParams
+
+	headers := r.Header
+
+	// ------------- Required header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = IdempotencyKey
+
+	} else {
+		err := fmt.Errorf("Header parameter Idempotency-Key is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "Idempotency-Key", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetReviewer(w, r, id, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 type UnescapedCookieParamError struct {
 	ParamName string
 	Err       error
@@ -7607,6 +8410,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/organizations/{id}/members", wrapper.ListMembers)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/organizations/{id}/members", wrapper.AddMember)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/overrides", wrapper.SetOverride)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/reviews", wrapper.ListReviews)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/reviews/{id}", wrapper.GetReview)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/skills", wrapper.ListSkills)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/skills", wrapper.CreateSkill)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/v1/skills/{id}", wrapper.DeactivateSkill)
@@ -7615,6 +8420,9 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/v1/tokens/{id}", wrapper.RevokeToken)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/user-matrices", wrapper.ListUserMatrices)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/user-matrices", wrapper.CreateUserMatrix)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/v1/user-matrices/{id}/reviewer", wrapper.RemoveReviewer)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/user-matrices/{id}/reviewer", wrapper.GetReviewer)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/v1/user-matrices/{id}/reviewer", wrapper.SetReviewer)
 
 	return m
 }
@@ -12216,6 +13024,247 @@ func (response SetOverride500JSONResponse) VisitSetOverrideResponse(w http.Respo
 	return err
 }
 
+type ListReviewsRequestObject struct {
+	Params ListReviewsParams
+}
+
+type ListReviewsResponseObject interface {
+	VisitListReviewsResponse(w http.ResponseWriter) error
+}
+
+type ListReviews200JSONResponse ReviewAssignmentPage
+
+func (response ListReviews200JSONResponse) VisitListReviewsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListReviews400JSONResponse Error
+
+func (response ListReviews400JSONResponse) VisitListReviewsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListReviews401JSONResponse Error
+
+func (response ListReviews401JSONResponse) VisitListReviewsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListReviews403JSONResponse Error
+
+func (response ListReviews403JSONResponse) VisitListReviewsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListReviews404JSONResponse Error
+
+func (response ListReviews404JSONResponse) VisitListReviewsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListReviews409JSONResponse Error
+
+func (response ListReviews409JSONResponse) VisitListReviewsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListReviews422JSONResponse Error
+
+func (response ListReviews422JSONResponse) VisitListReviewsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(422)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListReviews500JSONResponse Error
+
+func (response ListReviews500JSONResponse) VisitListReviewsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetReviewRequestObject struct {
+	Id     string `json:"id"`
+	Params GetReviewParams
+}
+
+type GetReviewResponseObject interface {
+	VisitGetReviewResponse(w http.ResponseWriter) error
+}
+
+type GetReview200JSONResponse ReviewContext
+
+func (response GetReview200JSONResponse) VisitGetReviewResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetReview400JSONResponse Error
+
+func (response GetReview400JSONResponse) VisitGetReviewResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetReview401JSONResponse Error
+
+func (response GetReview401JSONResponse) VisitGetReviewResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetReview403JSONResponse Error
+
+func (response GetReview403JSONResponse) VisitGetReviewResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetReview404JSONResponse Error
+
+func (response GetReview404JSONResponse) VisitGetReviewResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetReview409JSONResponse Error
+
+func (response GetReview409JSONResponse) VisitGetReviewResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetReview422JSONResponse Error
+
+func (response GetReview422JSONResponse) VisitGetReviewResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(422)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetReview500JSONResponse Error
+
+func (response GetReview500JSONResponse) VisitGetReviewResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type ListSkillsRequestObject struct {
 	Params ListSkillsParams
 }
@@ -13182,6 +14231,370 @@ func (response CreateUserMatrix500JSONResponse) VisitCreateUserMatrixResponse(w 
 	return err
 }
 
+type RemoveReviewerRequestObject struct {
+	Id     string `json:"id"`
+	Params RemoveReviewerParams
+}
+
+type RemoveReviewerResponseObject interface {
+	VisitRemoveReviewerResponse(w http.ResponseWriter) error
+}
+
+type RemoveReviewer200JSONResponse Reviewer
+
+func (response RemoveReviewer200JSONResponse) VisitRemoveReviewerResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RemoveReviewer400JSONResponse Error
+
+func (response RemoveReviewer400JSONResponse) VisitRemoveReviewerResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RemoveReviewer401JSONResponse Error
+
+func (response RemoveReviewer401JSONResponse) VisitRemoveReviewerResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RemoveReviewer403JSONResponse Error
+
+func (response RemoveReviewer403JSONResponse) VisitRemoveReviewerResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RemoveReviewer404JSONResponse Error
+
+func (response RemoveReviewer404JSONResponse) VisitRemoveReviewerResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RemoveReviewer409JSONResponse Error
+
+func (response RemoveReviewer409JSONResponse) VisitRemoveReviewerResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RemoveReviewer422JSONResponse Error
+
+func (response RemoveReviewer422JSONResponse) VisitRemoveReviewerResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(422)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RemoveReviewer500JSONResponse Error
+
+func (response RemoveReviewer500JSONResponse) VisitRemoveReviewerResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetReviewerRequestObject struct {
+	Id     string `json:"id"`
+	Params GetReviewerParams
+}
+
+type GetReviewerResponseObject interface {
+	VisitGetReviewerResponse(w http.ResponseWriter) error
+}
+
+type GetReviewer200JSONResponse Reviewer
+
+func (response GetReviewer200JSONResponse) VisitGetReviewerResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetReviewer400JSONResponse Error
+
+func (response GetReviewer400JSONResponse) VisitGetReviewerResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetReviewer401JSONResponse Error
+
+func (response GetReviewer401JSONResponse) VisitGetReviewerResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetReviewer403JSONResponse Error
+
+func (response GetReviewer403JSONResponse) VisitGetReviewerResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetReviewer404JSONResponse Error
+
+func (response GetReviewer404JSONResponse) VisitGetReviewerResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetReviewer409JSONResponse Error
+
+func (response GetReviewer409JSONResponse) VisitGetReviewerResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetReviewer422JSONResponse Error
+
+func (response GetReviewer422JSONResponse) VisitGetReviewerResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(422)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetReviewer500JSONResponse Error
+
+func (response GetReviewer500JSONResponse) VisitGetReviewerResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetReviewerRequestObject struct {
+	Id     string `json:"id"`
+	Params SetReviewerParams
+	Body   *SetReviewerJSONRequestBody
+}
+
+type SetReviewerResponseObject interface {
+	VisitSetReviewerResponse(w http.ResponseWriter) error
+}
+
+type SetReviewer200JSONResponse Reviewer
+
+func (response SetReviewer200JSONResponse) VisitSetReviewerResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetReviewer400JSONResponse Error
+
+func (response SetReviewer400JSONResponse) VisitSetReviewerResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetReviewer401JSONResponse Error
+
+func (response SetReviewer401JSONResponse) VisitSetReviewerResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetReviewer403JSONResponse Error
+
+func (response SetReviewer403JSONResponse) VisitSetReviewerResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetReviewer404JSONResponse Error
+
+func (response SetReviewer404JSONResponse) VisitSetReviewerResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetReviewer409JSONResponse Error
+
+func (response SetReviewer409JSONResponse) VisitSetReviewerResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetReviewer422JSONResponse Error
+
+func (response SetReviewer422JSONResponse) VisitSetReviewerResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(422)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetReviewer500JSONResponse Error
+
+func (response SetReviewer500JSONResponse) VisitSetReviewerResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
 
@@ -13299,6 +14712,12 @@ type StrictServerInterface interface {
 	// (POST /api/v1/overrides)
 	SetOverride(ctx context.Context, request SetOverrideRequestObject) (SetOverrideResponseObject, error)
 
+	// (GET /api/v1/reviews)
+	ListReviews(ctx context.Context, request ListReviewsRequestObject) (ListReviewsResponseObject, error)
+
+	// (GET /api/v1/reviews/{id})
+	GetReview(ctx context.Context, request GetReviewRequestObject) (GetReviewResponseObject, error)
+
 	// (GET /api/v1/skills)
 	ListSkills(ctx context.Context, request ListSkillsRequestObject) (ListSkillsResponseObject, error)
 
@@ -13322,6 +14741,15 @@ type StrictServerInterface interface {
 
 	// (POST /api/v1/user-matrices)
 	CreateUserMatrix(ctx context.Context, request CreateUserMatrixRequestObject) (CreateUserMatrixResponseObject, error)
+
+	// (DELETE /api/v1/user-matrices/{id}/reviewer)
+	RemoveReviewer(ctx context.Context, request RemoveReviewerRequestObject) (RemoveReviewerResponseObject, error)
+
+	// (GET /api/v1/user-matrices/{id}/reviewer)
+	GetReviewer(ctx context.Context, request GetReviewerRequestObject) (GetReviewerResponseObject, error)
+
+	// (PUT /api/v1/user-matrices/{id}/reviewer)
+	SetReviewer(ctx context.Context, request SetReviewerRequestObject) (SetReviewerResponseObject, error)
 }
 
 type StrictHandlerFunc func(ctx context.Context, w http.ResponseWriter, r *http.Request, request any) (any, error)
@@ -14488,6 +15916,59 @@ func (sh *strictHandler) SetOverride(w http.ResponseWriter, r *http.Request, par
 	}
 }
 
+// ListReviews operation middleware
+func (sh *strictHandler) ListReviews(w http.ResponseWriter, r *http.Request, params ListReviewsParams) {
+	var request ListReviewsRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListReviews(ctx, request.(ListReviewsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListReviews")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListReviewsResponseObject); ok {
+		if err := validResponse.VisitListReviewsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetReview operation middleware
+func (sh *strictHandler) GetReview(w http.ResponseWriter, r *http.Request, id string, params GetReviewParams) {
+	var request GetReviewRequestObject
+
+	request.Id = id
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetReview(ctx, request.(GetReviewRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetReview")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetReviewResponseObject); ok {
+		if err := validResponse.VisitGetReviewResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // ListSkills operation middleware
 func (sh *strictHandler) ListSkills(w http.ResponseWriter, r *http.Request, params ListSkillsParams) {
 	var request ListSkillsRequestObject
@@ -14726,81 +16207,174 @@ func (sh *strictHandler) CreateUserMatrix(w http.ResponseWriter, r *http.Request
 	}
 }
 
+// RemoveReviewer operation middleware
+func (sh *strictHandler) RemoveReviewer(w http.ResponseWriter, r *http.Request, id string, params RemoveReviewerParams) {
+	var request RemoveReviewerRequestObject
+
+	request.Id = id
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RemoveReviewer(ctx, request.(RemoveReviewerRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RemoveReviewer")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RemoveReviewerResponseObject); ok {
+		if err := validResponse.VisitRemoveReviewerResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetReviewer operation middleware
+func (sh *strictHandler) GetReviewer(w http.ResponseWriter, r *http.Request, id string, params GetReviewerParams) {
+	var request GetReviewerRequestObject
+
+	request.Id = id
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetReviewer(ctx, request.(GetReviewerRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetReviewer")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetReviewerResponseObject); ok {
+		if err := validResponse.VisitGetReviewerResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// SetReviewer operation middleware
+func (sh *strictHandler) SetReviewer(w http.ResponseWriter, r *http.Request, id string, params SetReviewerParams) {
+	var request SetReviewerRequestObject
+
+	request.Id = id
+	request.Params = params
+
+	var body SetReviewerJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.SetReviewer(ctx, request.(SetReviewerRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "SetReviewer")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(SetReviewerResponseObject); ok {
+		if err := validResponse.VisitSetReviewerResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // Base64 encoded, compressed with deflate, json marshaled OpenAPI spec.
 // Stored as a slice of fixed-width chunks rather than one concatenated
 // const string: with thousands of chunks the chained `+` fold is several
 // times slower for the Go compiler than parsing a slice literal.
 var swaggerSpec = []string{
-	"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",
+	"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",
 }
 
 // decodeSpec returns the embedded OpenAPI spec as raw JSON bytes,

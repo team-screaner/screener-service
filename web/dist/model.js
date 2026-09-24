@@ -89,3 +89,10 @@ export function growthPayload(plan, itemID, status) {
     })),
   };
 }
+
+export function managerDraft(assessment, reviewerID) {
+  if (!assessment || assessment.assessor_id !== reviewerID) return {};
+  return Object.fromEntries(assessment.items.map(item => [item.requirement_id, {
+    ...item, evidence_ids: [...(item.evidence_ids || [])],
+  }]));
+}

@@ -47,6 +47,8 @@ func (s *Store) dispatch(ctx context.Context, tx *sql.Tx, c domain.Command) (dom
 		return domain.Result{"revoked": true}, nil
 	case "createMatrix", "listMatrices", "getMatrix", "listVersions", "getVersion", "createVersion", "publishVersion", "updateVersion":
 		return handleMatrix(ctx, tx, c)
+	case "getReviewer", "setReviewer", "removeReviewer", "listReviews", "getReview":
+		return handleReviews(ctx, tx, c)
 	case "createUserMatrix", "listUserMatrices", "setOverride", "createAssessment", "getAssessment", "listAssessments", "getGrowthContext", "getGaps", "getRadar", "createGrowthPlan", "updateGrowthPlan", "listGrowthPlans":
 		return handleGrowth(ctx, tx, c)
 	case "createOrganization", "listOrganizations", "addMember", "listMembers", "createSkill", "listSkills", "deactivateSkill", "listFactTypes":

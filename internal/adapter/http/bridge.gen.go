@@ -376,3 +376,43 @@ func (s *server) ListAudit(ctx context.Context, request api.ListAuditRequestObje
 	}
 	return jsonResponse{data: result}, nil
 }
+func (r jsonResponse) VisitGetReviewerResponse(w http.ResponseWriter) error { return r.write(w) }
+func (s *server) GetReviewer(ctx context.Context, request api.GetReviewerRequestObject) (api.GetReviewerResponseObject, error) {
+	result, err := s.execute(ctx, "getReviewer", request.Id)
+	if err != nil {
+		return nil, err
+	}
+	return jsonResponse{data: result}, nil
+}
+func (r jsonResponse) VisitSetReviewerResponse(w http.ResponseWriter) error { return r.write(w) }
+func (s *server) SetReviewer(ctx context.Context, request api.SetReviewerRequestObject) (api.SetReviewerResponseObject, error) {
+	result, err := s.execute(ctx, "setReviewer", request.Id)
+	if err != nil {
+		return nil, err
+	}
+	return jsonResponse{data: result}, nil
+}
+func (r jsonResponse) VisitRemoveReviewerResponse(w http.ResponseWriter) error { return r.write(w) }
+func (s *server) RemoveReviewer(ctx context.Context, request api.RemoveReviewerRequestObject) (api.RemoveReviewerResponseObject, error) {
+	result, err := s.execute(ctx, "removeReviewer", request.Id)
+	if err != nil {
+		return nil, err
+	}
+	return jsonResponse{data: result}, nil
+}
+func (r jsonResponse) VisitListReviewsResponse(w http.ResponseWriter) error { return r.write(w) }
+func (s *server) ListReviews(ctx context.Context, request api.ListReviewsRequestObject) (api.ListReviewsResponseObject, error) {
+	result, err := s.execute(ctx, "listReviews", "")
+	if err != nil {
+		return nil, err
+	}
+	return jsonResponse{data: result}, nil
+}
+func (r jsonResponse) VisitGetReviewResponse(w http.ResponseWriter) error { return r.write(w) }
+func (s *server) GetReview(ctx context.Context, request api.GetReviewRequestObject) (api.GetReviewResponseObject, error) {
+	result, err := s.execute(ctx, "getReview", request.Id)
+	if err != nil {
+		return nil, err
+	}
+	return jsonResponse{data: result}, nil
+}

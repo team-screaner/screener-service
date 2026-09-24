@@ -19,10 +19,11 @@ type assessmentItem struct {
 	EvidenceIDs   []string `json:"evidence_ids"`
 }
 type assessmentInput struct {
-	UserMatrixID string           `json:"user_matrix_id"`
-	Period       string           `json:"period"`
-	Type         string           `json:"type"`
-	Items        []assessmentItem `json:"items"`
+	ReviewedAssessmentID string           `json:"reviewed_assessment_id"`
+	UserMatrixID         string           `json:"user_matrix_id"`
+	Period               string           `json:"period"`
+	Type                 string           `json:"type"`
+	Items                []assessmentItem `json:"items"`
 }
 
 func userMatrix(ctx context.Context, tx *sql.Tx, user, id string) (domain.Result, error) {
@@ -164,15 +165,27 @@ func createAssessment(ctx context.Context, tx *sql.Tx, c domain.Command) (domain
 	if err != nil {
 		return nil, err
 	}
-	if in.Type != "self" || strings.TrimSpace(in.Period) == "" || len(in.Period) > 100 || len(in.Items) < 1 || len(in.Items) > 10000 {
-		return nil, domain.Invalid("Self assessment requires period and 1..10000 items")
+	if (in.Type != "self" && in.Type != "manager") || strings.TrimSpace(in.Period) == "" || len(in.Period) > 100 || len(in.Items) < 1 || len(in.Items) > 10000 {
+		return nil, domain.Invalid("Assessment requires period and 1..10000 items")
 	}
-	u, err := userMatrix(ctx, tx, c.Actor.UserID, in.UserMatrixID)
+	var u domain.Result
+	if in.Type == "manager" {
+		u, err = managerAssessmentSubject(ctx, tx, c, in)
+	} else {
+		if in.ReviewedAssessmentID != "" {
+			return nil, domain.Invalid("Self assessment cannot review another assessment")
+		}
+		u, err = userMatrix(ctx, tx, c.Actor.UserID, in.UserMatrixID)
+	}
 	if err != nil {
 		return nil, err
 	}
+	owner, ok := u["user_id"].(string)
+	if !ok {
+		return nil, errors.New("invalid assignment owner")
+	}
 	id := ID()
-	_, err = tx.ExecContext(ctx, `INSERT INTO assessments(id,user_id,user_matrix_id,matrix_version_id,period,type) VALUES($1,$2,$3,$4,$5,'self')`, id, c.Actor.UserID, in.UserMatrixID, u["matrix_version_id"], in.Period)
+	_, err = tx.ExecContext(ctx, `INSERT INTO assessments(id,user_id,user_matrix_id,matrix_version_id,period,type,assessor_id,reviewed_assessment_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8)`, id, owner, in.UserMatrixID, u["matrix_version_id"], in.Period, in.Type, c.Actor.UserID, nullable(in.ReviewedAssessmentID))
 	if err != nil {
 		return nil, err
 	}
@@ -192,12 +205,22 @@ func createAssessment(ctx context.Context, tx *sql.Tx, c domain.Command) (domain
 		if err != nil {
 			return nil, err
 		}
+		if in.Type == "manager" {
+			var snapshot string
+			snapshotErr := tx.QueryRowContext(ctx, `SELECT requirement_snapshot FROM assessment_items WHERE assessment_id=$1 AND requirement_id=$2`, in.ReviewedAssessmentID, item.RequirementID).Scan(&snapshot)
+			if snapshotErr != nil && !errors.Is(snapshotErr, sql.ErrNoRows) {
+				return nil, snapshotErr
+			}
+			if snapshotErr == nil {
+				description = snapshot
+			}
+		}
 		_, err = tx.ExecContext(ctx, `INSERT INTO assessment_items(assessment_id,requirement_id,score,status,comment,na_reason,requirement_snapshot) VALUES($1,$2,$3,$4,$5,$6,$7)`, id, item.RequirementID, item.Score, item.Status, item.Comment, item.NAReason, description)
 		if err != nil {
 			return nil, err
 		}
 		for _, ev := range item.EvidenceIDs {
-			if checkErr := validateEvidenceLink(ctx, tx, c.Actor.UserID, ev, item.RequirementID); checkErr != nil {
+			if checkErr := validateEvidenceLink(ctx, tx, owner, ev, item.RequirementID); checkErr != nil {
 				return nil, checkErr
 			}
 			if _, err = tx.ExecContext(ctx, `INSERT INTO assessment_evidence(assessment_id,requirement_id,evidence_id) VALUES($1,$2,$3)`, id, item.RequirementID, ev); err != nil {
@@ -205,7 +228,7 @@ func createAssessment(ctx context.Context, tx *sql.Tx, c domain.Command) (domain
 			}
 		}
 	}
-	return assessmentData(ctx, tx, id, c.Actor.UserID)
+	return assessmentData(ctx, tx, id, owner)
 }
 func assessmentData(ctx context.Context, tx *sql.Tx, id, user string) (domain.Result, error) {
 	a, err := jsonRow(ctx, tx, `SELECT to_jsonb(a) FROM assessments a WHERE id=$1 AND user_id=$2`, id, user)
@@ -272,7 +295,7 @@ func growthContext(ctx context.Context, tx *sql.Tx, c domain.Command) (domain.Re
 	}
 	return domain.Result{"user": user, "user_matrix": u, "matrix": matrix, "matrix_version": v, "current_level": current, "target_level": target, "competencies": v["groups"], "requirements": reqs, "skills": v["skills"], "signals": signals, "fact_types": facts, "evidence": evidence, "evidence_limit": 100}, nil
 }
-func readiness(ctx context.Context, tx *sql.Tx, c domain.Command) (result domain.Result, resultErr error) {
+func readiness(ctx context.Context, tx *sql.Tx, c domain.Command) (domain.Result, error) {
 	u, err := userMatrix(ctx, tx, c.Actor.UserID, c.Query.Get("user_matrix_id"))
 	if err != nil {
 		return nil, err
@@ -282,23 +305,7 @@ func readiness(ctx context.Context, tx *sql.Tx, c domain.Command) (result domain
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return nil, err
 	}
-	rows, err := tx.QueryContext(ctx, `SELECT r.id,m.skill_id,g.id,r.weight,m.weight,g.weight,(r.required OR m.required),r.critical,COALESCE(i.status='not_applicable',false),COALESCE(i.na_reason,''),COALESCE(i.score,0) FROM requirements r JOIN matrix_skills m ON m.id=r.matrix_skill_id JOIN competency_groups g ON g.id=m.group_id LEFT JOIN assessment_items i ON i.requirement_id=r.id AND i.assessment_id=$3 WHERE r.matrix_version_id=$1 AND r.level_id=$2 AND m.active ORDER BY r.id`, u["matrix_version_id"], u["target_level_id"], nullable(aid))
-	if err != nil {
-		return nil, err
-	}
-	defer func() { resultErr = errors.Join(resultErr, rows.Close()) }()
-	progress := []domain.RequirementProgress{}
-	for rows.Next() {
-		var p domain.RequirementProgress
-		if checkErr := rows.Scan(&p.RequirementID, &p.SkillID, &p.GroupID, &p.RequirementWeight, &p.SkillWeight, &p.GroupWeight, &p.Required, &p.Critical, &p.NotApplicable, &p.NAReason, &p.Score); checkErr != nil {
-			return nil, checkErr
-		}
-		progress = append(progress, p)
-	}
-	if checkErr := rows.Err(); checkErr != nil {
-		return nil, checkErr
-	}
-	r, err := domain.CalculateReadiness(progress)
+	r, err := assessmentReadiness(ctx, tx, u["matrix_version_id"], u["target_level_id"], aid)
 	if err != nil {
 		return nil, err
 	}
@@ -335,7 +342,45 @@ func readiness(ctx context.Context, tx *sql.Tx, c domain.Command) (result domain
 			}
 			self = append(self, domain.Result{"group_id": groupID, "name": group["name"], "percent": percentByGroup[groupID]})
 		}
-		out["series"] = domain.Result{"self": self, "manager": nil, "current_requirements": currentRequirements, "target_requirements": targetRequirements}
+		out["manager_assessment_id"] = nil
+		out["period"] = nil
+		out["manager_author"] = nil
+		var manager []domain.Result
+		if aid != "" {
+			var period string
+			if periodErr := tx.QueryRowContext(ctx, `SELECT period FROM assessments WHERE id=$1`, aid).Scan(&period); periodErr != nil {
+				return nil, periodErr
+			}
+			out["period"] = period
+			mid, managerErr := latestManagerAssessment(ctx, tx, aid)
+			if managerErr != nil {
+				return nil, managerErr
+			}
+			if mid != "" {
+				out["manager_assessment_id"] = mid
+				out["manager_author"], err = jsonRow(ctx, tx, `SELECT jsonb_build_object('id',u.id,'email',u.email,'name',u.name) FROM users u JOIN assessments a ON a.assessor_id=u.id WHERE a.id=$1`, mid)
+				if err != nil {
+					return nil, err
+				}
+				mr, calcErr := assessmentReadiness(ctx, tx, u["matrix_version_id"], u["target_level_id"], mid)
+				if calcErr != nil {
+					return nil, calcErr
+				}
+				byGroup := make(map[string]float64, len(mr.Groups))
+				for _, g := range mr.Groups {
+					byGroup[g.GroupID] = g.Percent
+				}
+				manager = make([]domain.Result, 0, len(self))
+				for _, g := range self {
+					gid, ok := g["group_id"].(string)
+					if !ok {
+						return nil, errors.New("invalid radar group")
+					}
+					manager = append(manager, domain.Result{"group_id": gid, "name": g["name"], "percent": byGroup[gid]})
+				}
+			}
+		}
+		out["series"] = domain.Result{"self": self, "manager": manager, "current_requirements": currentRequirements, "target_requirements": targetRequirements}
 	}
 	return out, nil
 }
@@ -424,4 +469,24 @@ func saveGrowthPlan(ctx context.Context, tx *sql.Tx, c domain.Command) (domain.R
 // active requirements at the selected level. Such groups have no expected score.
 func radarRequirements(ctx context.Context, tx *sql.Tx, version, level any) ([]domain.Result, error) {
 	return jsonRows(ctx, tx, `SELECT jsonb_build_object('group_id',g.id,'name',g.name,'requirements_count',count(r.id),'expected_score',CASE WHEN count(r.id)>0 THEN 4 ELSE 0 END) FROM competency_groups g LEFT JOIN matrix_skills m ON m.group_id=g.id AND m.matrix_version_id=g.matrix_version_id AND m.active LEFT JOIN requirements r ON r.matrix_skill_id=m.id AND r.level_id=$2 WHERE g.matrix_version_id=$1 GROUP BY g.id,g.name ORDER BY g.id`, version, level)
+}
+
+func assessmentReadiness(ctx context.Context, tx *sql.Tx, version, level any, aid string) (result domain.ReadinessResult, resultErr error) {
+	rows, err := tx.QueryContext(ctx, `SELECT r.id,m.skill_id,g.id,r.weight,m.weight,g.weight,(r.required OR m.required),r.critical,COALESCE(i.status='not_applicable',false),COALESCE(i.na_reason,''),COALESCE(i.score,0) FROM requirements r JOIN matrix_skills m ON m.id=r.matrix_skill_id JOIN competency_groups g ON g.id=m.group_id LEFT JOIN assessment_items i ON i.requirement_id=r.id AND i.assessment_id=$3 WHERE r.matrix_version_id=$1 AND r.level_id=$2 AND m.active ORDER BY r.id`, version, level, nullable(aid))
+	if err != nil {
+		return domain.ReadinessResult{}, err
+	}
+	defer func() { resultErr = errors.Join(resultErr, rows.Close()) }()
+	progress := []domain.RequirementProgress{}
+	for rows.Next() {
+		var p domain.RequirementProgress
+		if checkErr := rows.Scan(&p.RequirementID, &p.SkillID, &p.GroupID, &p.RequirementWeight, &p.SkillWeight, &p.GroupWeight, &p.Required, &p.Critical, &p.NotApplicable, &p.NAReason, &p.Score); checkErr != nil {
+			return domain.ReadinessResult{}, checkErr
+		}
+		progress = append(progress, p)
+	}
+	if checkErr := rows.Err(); checkErr != nil {
+		return domain.ReadinessResult{}, checkErr
+	}
+	return domain.CalculateReadiness(progress)
 }

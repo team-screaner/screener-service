@@ -100,3 +100,13 @@ test("user-provided text and links cannot become executable markup", () => {
   assert.equal(safeURL("javascript:alert(1)"), "");
   assert.equal(safeURL("https://example.com/pr/1"), "https://example.com/pr/1");
 });
+
+test('a replacement manager starts an independent draft and never inherits another author’s ratings', async () => {
+  const { managerDraft } = await import('../dist/model.js');
+  const assessment = {assessor_id:'old-manager',items:[{requirement_id:'r',score:4,evidence_ids:['e']}]};
+  assert.deepEqual(managerDraft(assessment, 'new-manager'), {});
+  const own = managerDraft(assessment, 'old-manager');
+  assert.equal(own.r.score,4);
+  own.r.evidence_ids.push('new');
+  assert.deepEqual(assessment.items[0].evidence_ids,['e']);
+});

@@ -18,7 +18,7 @@ Source: supplied screener_spec_v0.1.docx. Document instructions are requirements
 7. Does a fork merge automatically? No. Stable skill key + level key compares snapshots; explicit review/apply/ignore. Apply creates a draft from upstream; custom fork changes remain on prior version for review, never overwritten silently.
 8. What does override affect? A user-matrix-specific effective requirement description, never shared matrix or prior assessment.
 9. What is imported? Mapped XLSX preview then explicit creation of draft; bounded files/rows/cells, formula rejection, no execution.
-10. What is out of scope? Phase 2 MCP, native crawlers/integrations, HRIS, promotion decisions, manager/peer scoring UI. API rejects unsupported assessment types until workflow is authorized.
+10. What is out of scope? Phase 2 MCP, native crawlers/integrations, HRIS, promotion decisions, peer scoring. Manager review is now supported through explicit per-matrix delegation; see [manager-reviews.md](manager-reviews.md).
 
 ## Contract and schema
 OpenAPI in api/openapi.yaml. Stable UUIDv7 IDs, UTC timestamps, bounded cursor lists. Authentication and authorization precede idempotency replay. All mutable aggregates use optimistic versions where edited. All relationships normalized; JSONB only retained API command results, audit details and immutable assessment context snapshots. DB constraints supplement application checks. Foreign keys preserve history; deactivation instead of deleting skills. Published versions are guarded at application and database boundaries.

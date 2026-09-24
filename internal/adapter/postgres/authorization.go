@@ -11,6 +11,27 @@ import (
 // revision etc.) run only for fresh commands, so completed retries remain stable.
 func preauthorize(ctx context.Context, tx *sql.Tx, c domain.Command) error {
 	switch c.Operation {
+	case "setReviewer", "removeReviewer":
+		if _, err := userMatrix(ctx, tx, c.Actor.UserID, c.ID); err != nil {
+			return mapError(err)
+		}
+		return mapError(lockAssignment(ctx, tx, c.ID))
+	case "createAssessment":
+		in, err := decode[assessmentInput](c.Body)
+		if err != nil {
+			return err
+		}
+		if in.Type == "manager" {
+			if err = lockAssignment(ctx, tx, in.UserMatrixID); err != nil {
+				return mapError(err)
+			}
+			_, err = reviewAssignment(ctx, tx, in.UserMatrixID, c.Actor.UserID)
+			return mapError(err)
+		}
+		if _, err = userMatrix(ctx, tx, c.Actor.UserID, in.UserMatrixID); err != nil {
+			return mapError(err)
+		}
+		return mapError(lockAssignment(ctx, tx, in.UserMatrixID))
 	case "createVersion", "getUpstream", "reviewUpstream":
 		_, err := matrixAccess(ctx, tx, c.ID, c.Actor.UserID, true)
 		return err
