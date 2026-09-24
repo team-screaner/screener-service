@@ -33,3 +33,4 @@ go.work.sum
 
 bin/
 work/
+node_modules/

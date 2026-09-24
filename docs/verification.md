@@ -40,7 +40,7 @@ Additional integration coverage includes atomic batch rollback, concurrent exter
 
 ## Operational boundaries
 
-This is an MVP backend, not a production deployment or a frontend. The local demo uses explicitly documented development credentials. Production infrastructure must supply TLS, its own database/password and persistent response encryption key. There is no account recovery/email verification, online encryption-key rotation, manager/peer workflow, MCP server or native issue-tracker crawler in this MVP. Manager radar is explicitly null rather than a fabricated rating.
+This is an MVP backend with a personal-workspace frontend, not a production deployment. Frontend scope and its separate validation record are in [frontend.md](frontend.md). The local demo uses explicitly documented development credentials. Production infrastructure must supply TLS, its own database/password and persistent response encryption key. There is no account recovery/email verification, online encryption-key rotation, manager/peer workflow, MCP server or native issue-tracker crawler in this MVP. Manager radar is explicitly null rather than a fabricated rating.
 
 Query plans are captured in [queries.md](queries.md) and [queries-evidence.md](queries-evidence.md), including a 20,000-evidence fixture. They do not establish production latency or capacity. No production-scale load or penetration test is claimed. The default audit partition preserves writes for arbitrary dates; operators should add quarterly partitions and retention procedures before large-scale deployment.
 

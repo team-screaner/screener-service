@@ -1,4 +1,4 @@
-.PHONY: run generate test test-integration build vet lint up down migrate seed smoke
+.PHONY: run generate test test-integration test-web test-web-live build vet lint up down migrate seed smoke
 
 run:
 	go run ./cmd/screener
@@ -11,6 +11,13 @@ test:
 
 test-integration:
 	go test -race -shuffle=on -tags integration ./...
+
+test-web:
+	npm --prefix web run check
+	npm --prefix web test
+
+test-web-live:
+	npm --prefix web run test:live
 
 build:
 	mkdir -p bin

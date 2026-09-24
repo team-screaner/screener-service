@@ -18,6 +18,7 @@ import (
 	"github.com/team-screaner/screener-service/internal/adapter/postgres"
 	"github.com/team-screaner/screener-service/internal/domain"
 	"github.com/team-screaner/screener-service/internal/usecase"
+	"github.com/team-screaner/screener-service/web"
 )
 
 type requestKey struct{}
@@ -52,12 +53,17 @@ func newServer(db *sql.DB, store *postgres.Store) http.Handler {
 		panic(err)
 	}
 	docs := documentationHandler(contract)
+	frontend := web.Handler()
 	h = middleware.OapiRequestValidatorWithOptions(spec, &middleware.Options{Options: openapi3filter.Options{AuthenticationFunc: openapi3filter.NoopAuthenticationFunc}, ErrorHandler: func(w http.ResponseWriter, _ string, _ int) {
 		writeError(w, domain.Invalid("Request does not match API contract"))
 	}})(h)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("Cache-Control", "no-store")
+		if r.URL.Path == "/" || strings.HasPrefix(r.URL.Path, "/assets/") {
+			frontend.ServeHTTP(w, r)
+			return
+		}
 		if r.URL.Path == "/openapi.json" || r.URL.Path == "/docs" || strings.HasPrefix(r.URL.Path, "/docs/") {
 			docs.ServeHTTP(w, r)
 			return
