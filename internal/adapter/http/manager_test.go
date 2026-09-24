@@ -3,9 +3,11 @@
 package http_test
 
 import (
+	"bytes"
 	"testing"
 
 	"github.com/team-screaner/screener-service/internal/adapter/postgres"
+	"github.com/xuri/excelize/v2"
 )
 
 func TestManagerReviewAndRadar(t *testing.T) {
@@ -89,6 +91,30 @@ func TestManagerReviewAndRadar(t *testing.T) {
 	if review["assessor_id"] != managerID || review["reviewed_assessment_id"] != self["id"] || review["user_id"] != self["user_id"] {
 		t.Fatal("incorrect attribution")
 	}
+	t.Run("personal export retains self assessment", func(t *testing.T) {
+		response := contractMustRequest(t, s, "GET", "/export/xlsx?user_matrix_id="+um, owner, "", nil, 200)
+		book, openErr := excelize.OpenReader(bytes.NewReader(response.body))
+		if openErr != nil {
+			t.Fatal(openErr)
+		}
+		defer func() {
+			if closeErr := book.Close(); closeErr != nil {
+				t.Error(closeErr)
+			}
+		}()
+		rows, readErr := book.GetRows("Assessment")
+		if readErr != nil {
+			t.Fatal(readErr)
+		}
+		if len(rows) < 2 {
+			t.Fatal("missing assessment export")
+		}
+		for _, row := range rows[1:] {
+			if len(row) < 7 || row[0] != self["id"] || row[2] != "self" || row[6] != "4" {
+				t.Fatalf("manager assessment replaced self export: %v", row)
+			}
+		}
+	})
 	replay := call(t, s, "POST", "/assessments", manager, "review", body, 200)
 	if replay["id"] != review["id"] {
 		t.Fatal("retry duplicated assessment")

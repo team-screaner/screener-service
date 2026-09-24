@@ -294,7 +294,7 @@ func exportPersonalSheets(ctx context.Context, tx *sql.Tx, data []byte, user, us
 	defer func() { err = errors.Join(err, f.Close()) }()
 	assessments, err := jsonRows(ctx, tx, `SELECT jsonb_build_object('assessment_id',a.id,'period',a.period,'type',a.type,'skill',s.name,'requirement_id',ai.requirement_id,'requirement',ai.requirement_snapshot,'score',ai.score,'status',ai.status,'comment',ai.comment,'na_reason',ai.na_reason)
  FROM assessments a JOIN assessment_items ai ON ai.assessment_id=a.id JOIN requirements r ON r.id=ai.requirement_id JOIN matrix_skills ms ON ms.id=r.matrix_skill_id JOIN skills s ON s.id=ms.skill_id
- WHERE a.id=(SELECT id FROM assessments WHERE user_id=$1 AND user_matrix_id=$2 ORDER BY created_at DESC,id DESC LIMIT 1)
+ WHERE a.id=(SELECT id FROM assessments WHERE user_id=$1 AND user_matrix_id=$2 AND type='self' ORDER BY id DESC LIMIT 1)
  ORDER BY ms.position,r.id LIMIT 2001`, user, userMatrixID)
 	if err != nil {
 		return nil, err
