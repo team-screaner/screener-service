@@ -152,6 +152,7 @@ test(
         new win.Event("change", { bubbles: true }),
       );
       fill(`select[data-req="${reqID}"][data-draft="score"]`, "4");
+      fill('#assessment-form [name="period"]', "Private first-account review");
       await submit("#assessment-form");
       await wait(
         () => page.querySelector(".journey-banner"),
@@ -247,6 +248,36 @@ test(
       });
       assert.equal(revoked.status, 401);
       token = "";
+      await click('[data-action="auth-toggle"]');
+      fill('[name="name"]', "Second frontend user");
+      fill(
+        '[name="email"]',
+        `frontend-isolation-${crypto.randomUUID()}@example.test`,
+      );
+      fill('[name="password"]', "frontend-local-test-password");
+      await submit("#auth-form");
+      await wait(
+        () => page.querySelector(".sidebar"),
+        "Second registration failed",
+      );
+      token = win.sessionStorage.getItem("screener.session");
+      await route("catalog");
+      await click('[data-action="matrix-preview"]');
+      await wait(
+        () => page.querySelector("#assign-form"),
+        "Second matrix preview failed",
+      );
+      await submit("#assign-form");
+      await wait(
+        () => page.querySelector(".journey-banner"),
+        "Second assignment failed",
+      );
+      await route("assessment");
+      assert.notEqual(
+        page.querySelector('[name="period"]').value,
+        "Private first-account review",
+        "Previous account draft leaked into a new session",
+      );
     } finally {
       if (token)
         await nativeFetch(base + "/api/v1/auth/logout", {

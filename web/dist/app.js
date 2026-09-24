@@ -36,13 +36,36 @@ const state = {
 };
 const api = new Api({
   onUnauthorized: () => {
-    state.user = null;
-    state.context = null;
-    state.dirty = false;
-    dialog.close();
+    clearPrivateState();
     render();
   },
 });
+function clearPrivateState() {
+  ++loadVersion;
+  Object.assign(state, {
+    user: null,
+    matrices: [],
+    assignments: [],
+    evidence: [],
+    plans: [],
+    tokens: [],
+    facts: [],
+    context: null,
+    radar: null,
+    assessment: null,
+    draft: {},
+    dirty: false,
+    active: "",
+    search: "",
+    filter: "all",
+    period: "",
+    preview: null,
+    importInput: null,
+    error: "",
+  });
+  dialog.close();
+  dialog.replaceChildren();
+}
 const navItems = [
   ["overview", "Обзор", "grid"],
   ["matrix", "Моя матрица", "matrix"],
@@ -763,17 +786,7 @@ document.addEventListener("click", (event) => {
         return;
       await api.command("/auth/logout");
       api.setToken("");
-      ++loadVersion;
-      Object.assign(state, {
-        user: null,
-        context: null,
-        dirty: false,
-        active: "",
-        draft: {},
-        evidence: [],
-        tokens: [],
-      });
-      dialog.close();
+      clearPrivateState();
       render();
     } else if (action === "matrix-preview") await matrixPreview(id);
     else if (action === "review") {
