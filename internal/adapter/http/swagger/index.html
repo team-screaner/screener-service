@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Screener — Swagger UI</title>
+  <link rel="stylesheet" href="./swagger-ui.css">
+</head>
+<body>
+  <header class="swagger-ui">
+    <div class="wrapper">
+      <h1>Screener — Swagger UI</h1>
+      <p>Откройте метод → Try it out → заполните запрос → Execute.</p>
+      <p>Сначала вызовите <code>POST /api/v1/auth/register</code> или <code>/auth/login</code>.
+        Пароль: 12–72 байта. Скопируйте поле <code>token</code> из ответа в <strong>Authorize</strong>
+        без префикса <code>Bearer</code>. Токен хранится только до перезагрузки страницы.</p>
+      <p>Для операций с обязательным <code>Idempotency-Key</code> укажите новый уникальный ключ.
+        Повтор того же запроса с тем же ключом вернёт сохранённый результат.
+        <a href="/openapi.json">Скачать OpenAPI JSON</a>.</p>
+    </div>
+  </header>
+  <div id="swagger-ui"></div>
+  <script src="./swagger-ui-bundle.js"></script>
+  <script src="./initializer.js"></script>
+</body>
+</html>

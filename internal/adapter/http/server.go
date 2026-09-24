@@ -47,12 +47,21 @@ func newServer(db *sql.DB, store *postgres.Store) http.Handler {
 	if err != nil {
 		panic(err)
 	}
+	contract, err := json.Marshal(spec)
+	if err != nil {
+		panic(err)
+	}
+	docs := documentationHandler(contract)
 	h = middleware.OapiRequestValidatorWithOptions(spec, &middleware.Options{Options: openapi3filter.Options{AuthenticationFunc: openapi3filter.NoopAuthenticationFunc}, ErrorHandler: func(w http.ResponseWriter, _ string, _ int) {
 		writeError(w, domain.Invalid("Request does not match API contract"))
 	}})(h)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("Cache-Control", "no-store")
+		if r.URL.Path == "/openapi.json" || r.URL.Path == "/docs" || strings.HasPrefix(r.URL.Path, "/docs/") {
+			docs.ServeHTTP(w, r)
+			return
+		}
 		ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 		defer cancel()
 		r = r.WithContext(ctx)
