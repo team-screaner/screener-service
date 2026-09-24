@@ -1,0 +1,13 @@
+{
+  "name": "screener-web",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "test:live": "node --test test/live.mjs",
+    "check": "node --check dist/app.js && node --check dist/api.js && node --check dist/model.js && node --check dist/radar.js"
+  },
+  "devDependencies": {
+    "happy-dom": "20.14.5"
+  }
+}

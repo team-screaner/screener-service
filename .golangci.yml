@@ -1,0 +1,116 @@
+# Mechanical half of "100 Go Mistakes". Copy to a repo root as .golangci.yml.
+# Verified with golangci-lint v2.13.2 and Go 1.27.
+# Diagnostic severity still requires review context; style rules express owner conventions.
+version: "2"
+
+run:
+  timeout: 5m
+  tests: true
+
+linters:
+  default: none
+  enable:
+    # correctness
+    - errcheck
+    - govet
+    - staticcheck
+    - unused
+    - ineffassign
+    - errorlint        # %w, errors.Is/As instead of == and type switches
+    - nilerr
+    - nilnil
+    - bodyclose        # resp.Body.Close
+    - rowserrcheck     # rows.Err
+    - sqlclosecheck    # rows/stmt Close
+    - noctx            # http requests without context
+    - contextcheck     # context not propagated
+    - durationcheck
+    - exhaustive       # enum switches
+    - forcetypeassert
+    - makezero
+    - copyloopvar
+    - intrange
+    - gocheckcompilerdirectives
+    - musttag          # struct tags on (un)marshalled types
+    - spancheck
+    - protogetter
+    # design
+    - interfacebloat   # fat interfaces
+    - iface            # unused / identical interfaces
+    - recvcheck        # mixed value and pointer receivers
+    - unparam
+    - unconvert
+    - wastedassign
+    - predeclared
+    - revive
+    - gocritic
+    - gosec
+    - sloglint
+    - errname
+    # performance
+    - prealloc
+    - perfsprint
+    # tests
+    - testifylint
+    - thelper
+    - tparallel
+    - usetesting
+
+  settings:
+    govet:
+      enable-all: true
+      disable:
+        - fieldalignment
+    staticcheck:
+      checks: ["all"]
+    errorlint:
+      errorf: true
+      asserts: true
+      comparison: true
+    interfacebloat:
+      max: 5
+    gocritic:
+      enabled-tags:
+        - diagnostic
+        - performance
+        - style
+      disabled-checks:
+        - unnamedResult
+        - whyNoLint
+        - hugeParam
+    revive:
+      rules:
+        - name: context-as-argument
+        - name: error-return
+        - name: error-strings
+        - name: errorf
+        - name: exported
+          arguments: ["checkPrivateReceivers", "disableStutteringCheck"]
+        - name: indent-error-flow
+        - name: range-val-address
+        - name: receiver-naming
+        - name: unhandled-error
+          arguments: ["fmt.Print.*", "fmt.Fprint.*"]
+        - name: unused-parameter
+        - name: var-naming
+        - name: defer
+    gosec:
+      excludes:
+        - G104 # duplicated by errcheck
+
+  exclusions:
+    generated: lax
+    presets:
+      - common-false-positives
+    rules:
+      - path: _test\.go
+        linters:
+          - gosec
+          - forcetypeassert
+          - unparam
+          - contextcheck
+
+formatters:
+  enable:
+    - gofmt
+    - goimports

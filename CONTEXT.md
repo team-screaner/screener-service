@@ -1,0 +1,1 @@
+Screener prepares evidence-backed professional growth reviews. Matrix versions define expectations; user matrices select current/target; evidence records facts; immutable self assessments score requirements; readiness/gaps guide growth plans. Professions and grades are data. See docs/design.md and api/openapi.yaml.
