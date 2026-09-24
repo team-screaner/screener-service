@@ -7,7 +7,7 @@ export class ApiError extends Error {
 
 export class Api {
   constructor({
-    fetch = globalThis.fetch,
+    fetch = globalThis.fetch.bind(globalThis),
     storage = globalThis.sessionStorage,
     onUnauthorized = () => {},
   } = {}) {

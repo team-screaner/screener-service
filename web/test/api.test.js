@@ -2,6 +2,21 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { Api } from "../dist/api.js";
 
+test("native browser fetch keeps its Window receiver", async () => {
+  const original = globalThis.fetch;
+  globalThis.fetch = function () {
+    // Browser Web IDL methods reject an Api instance as their receiver.
+    if (this !== globalThis) throw new TypeError("Illegal invocation");
+    return Promise.resolve(Response.json({ id: "current-user" }));
+  };
+  try {
+    const api = new Api();
+    assert.deepEqual(await api.get("/me"), { id: "current-user" });
+  } finally {
+    globalThis.fetch = original;
+  }
+});
+
 test("retrying an uncertain mutation reuses its key; a new successful command gets a new key", async () => {
   const calls = [];
   const api = new Api({
